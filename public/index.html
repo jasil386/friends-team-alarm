@@ -175,13 +175,56 @@ document.addEventListener('click',async e=>{const t=e.target.closest('[data-t],[
  rd:async()=>{if(!S.admin&&!S.reads.some(r=>r.msg===i)&&S.uid&&!S.inbox.some(m=>m.id===i))await save('reads/'+i+'_'+S.uid,{msg:i,uid:S.uid,ts:Date.now()})},
  ss:async()=>{const f=$('#sl').files[0],lg=f?await up(f):S.set.logo;await save('settings/main',{name:$('#sn').value.trim().slice(0,40)||'Friends Team',logo:lg,notif:$('#sno').checked,memberSend:$('#sms').checked});toast('Settings saved')}})[d.a]?.()});
 /* ---------- boot ---------- */
-(async()=>{$('#app').innerHTML='<div class="card">Loading…</div>';
- user=await claude.use('user');db=await claude.use('db');assets=await claude.use('assets');
- if(!db||!user){$('#app').innerHTML='<div class="card"><h2>Sign in required</h2><p>Open this page while signed in to claude.ai to use Friends Team Alarm.</p></div>';return}
- S.admin=user.isOwner();S.uid=await user.id();
- snap('contacts','contacts');snap('alarms','alarms');snap('messages','msgs');snap('inbox','inbox');snap('acks','acks');snap('reads','reads');
- db.doc('settings/main').onSnapshot(s=>{if(s.exists)Object.assign(S.set,s.data());render()});
- db.doc(`data/users/${S.uid}/profile/me`).onSnapshot(s=>{S.meId=s.exists?s.data().id:'';render()});
- db.collection(`data/users/${S.uid}/alarmstate`).onSnapshot(s=>{S.st={};s.docs.forEach(d=>S.st[d.id]=d.data());render()});
- render();setInterval(tick,1000)})();
+(async()=>{
+  $('#app').innerHTML='<div class="card">Loading...</div>';
+
+  try{
+    if(!window.__FTA_TOKEN){
+      const ok=await login();
+      if(!ok)return;
+    }
+
+    user=await claude.use('user');
+    db=await claude.use('db');
+    assets=await claude.use('assets');
+
+    if(!user){
+      $('#app').innerHTML='<div class="card"><h2>Login required</h2><p>Please login to use Friends Team Alarm.</p></div>';
+      return;
+    }
+
+    S.admin=!!user.isOwner;
+    S.uid=await user.id();
+
+    snap('contacts','contacts');
+    snap('alarms','alarms');
+    snap('messages','msgs');
+    snap('inbox','inbox');
+    snap('acks','acks');
+    snap('reads','reads');
+
+    db.doc('settings/main').onSnapshot(s=>{
+      if(s.exists)Object.assign(S,s.data());
+      render();
+    });
+
+    db.doc(`data/users/${S.uid}/profile/me`).onSnapshot(s=>{
+      S.meId=s.exists?s.data().id:'';
+      render();
+    });
+
+    db.collection(`data/users/${S.uid}/alarmstate`).onSnapshot(s=>{
+      S.st={};
+      s.docs.forEach(d=>S.st[d.id]=d.data());
+      render();
+    });
+
+    render();
+    setInterval(tick,1000);
+
+  }catch(e){
+    console.error(e);
+    $('#app').innerHTML='<div class="card"><h2>Error</h2><p>'+e.message+'</p></div>';
+  }
+})();
 </script></body></html>
