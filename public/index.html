@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Friends Team Alarm</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);--bg:#f3f5fa;--card:#fff;--tx:#10131c;--mut:#6b7280;--ac:#6c5ce7;--ac2:#00c2a8;--bd:#e4e7ef;--bad:#e5484d;--ok:#22a06b}
+:root:not([data-theme="light"]){}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b0e16;--card:#151a26;--tx:#eef1f8;--mut:#8b93a7;--bd:#232a3b}}
+:root[data-theme="dark"]{--bg:#0b0e16;--card:#151a26;--tx:#eef1f8;--mut:#8b93a7;--bd:#232a3b}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+button,input,select,textarea{font:inherit;color:inherit}
+#app{max-width:760px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:20px;padding:16px;margin-bottom:12px;animation:in .3s ease}
+@keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.hero{background:linear-gradient(135deg,#6c5ce7,#0a8f9c);color:#fff;border:0;text-align:center;padding:24px 16px}
+.hero small{opacity:.85;letter-spacing:.12em;font-weight:600}.hero h1{margin:4px 0 12px;font-size:26px}
+#clock{font-size:52px;font-weight:700;font-variant-numeric:tabular-nums}
+.next{background:rgba(255,255,255,.16);border-radius:16px;padding:12px;margin-top:12px}
+#cd{font-size:36px;font-weight:700;font-variant-numeric:tabular-nums}
+.btn{border:0;border-radius:14px;padding:12px 16px;min-height:46px;background:var(--ac);color:#fff;font-weight:600;cursor:pointer}
+.btn.g{background:transparent;border:1px solid var(--bd);color:var(--tx)}.btn.d{background:var(--bad)}.btn.s{min-height:38px;padding:8px 12px;font-size:14px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.sp{justify-content:space-between}
+.av{width:52px;height:52px;border-radius:50%;background:var(--ac);color:#fff;display:grid;place-items:center;font-weight:700;object-fit:cover;flex:none}
+.tag{font-size:12px;padding:3px 9px;border-radius:99px;background:var(--bd);color:var(--mut);font-weight:600}
+.tag.ok{background:#22a06b22;color:var(--ok)}.tag.bad{background:#e5484d22;color:var(--bad)}.tag.ac{background:#6c5ce722;color:var(--ac)}
+.mut{color:var(--mut);font-size:14px}h2{margin:18px 4px 10px;font-size:20px}
+input,select,textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--bd);background:var(--bg);margin:4px 0 10px}
+label{font-size:13px;color:var(--mut);font-weight:600}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px));z-index:5}
+nav button{flex:1;border:0;background:none;padding:8px 2px;border-radius:12px;color:var(--mut);font-size:11px;cursor:pointer}
+nav button b{display:block;font-size:20px}nav button.on{color:var(--ac);background:#6c5ce714}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:12px}.top img,.top .av{width:40px;height:40px}
+.ov{position:fixed;inset:0;background:#000a;display:grid;place-items:end center;z-index:20;padding:0}
+.md{background:var(--card);width:100%;max-width:520px;border-radius:24px 24px 0 0;padding:20px;max-height:92vh;overflow:auto}
+.ring{place-items:center;padding:16px}.ring .md{border-radius:28px;text-align:center;animation:pulse 1s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 14px #6c5ce733}}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}.chip{padding:8px 12px;border-radius:99px;border:1px solid var(--bd);cursor:pointer;font-size:14px;user-select:none}.chip.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+img.pv{max-width:100%;max-height:200px;border-radius:12px;margin:6px 0}
+.msg.un{border-left:4px solid var(--ac)}
+@media(min-width:900px){body{padding-bottom:0;padding-left:230px}nav{top:0;bottom:auto;right:auto;width:230px;flex-direction:column;border-top:0;border-right:1px solid var(--bd);padding:24px 12px}nav button{display:flex;gap:12px;align-items:center;font-size:16px;text-align:left;padding:12px}nav button b{display:inline;font-size:20px}.md{border-radius:24px;place-self:center}.ov{place-items:center}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style></head><body>
+<div id="app"></div><nav id="nav"></nav><div id="mod"></div><div id="toast" style="position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:30"></div>
+<script>
+window.__FTA_TOKEN=localStorage.getItem('fta_token')||'';
+async function api(path,opt={}){const r=await fetch(path,{...opt,headers:{'Content-Type':'application/json',Authorization:'Bearer '+window.__FTA_TOKEN,...(opt.headers||{})}});if(!r.ok)throw new Error((await r.text())||r.statusText);return r.status===204?null:r.json()}
+async function login(){
+  const mode=prompt('Login as: admin or member','admin')?.trim().toLowerCase(); if(!mode)return false;
+  let body={mode}; if(mode==='admin') body.key=prompt('Admin key:'); else body.name=prompt('Your contact name:');
+  try{const x=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!x.ok)throw new Error('Login failed');const j=await x.json();localStorage.setItem('fta_token',j.token);window.__FTA_TOKEN=j.token;return true}catch(e){alert(e.message);return false}
+}
+window.claude={use:async kind=>{
+  if(kind==='user'){let m;try{m=await api('/api/me')}catch(e){if(await login())m=await api('/api/me');else return null}return {isOwner:()=>m.role==='admin',id:async()=>m.id}}
+  if(kind==='assets') return {upload:async f=>{return await new Promise((resolve,reject)=>{const rd=new FileReader();rd.onload=()=>resolve({url:rd.result});rd.onerror=reject;rd.readAsDataURL(f)})}};
+  if(kind==='db') return {doc:p=>({set:async d=>{await api('/api/doc?path='+encodeURIComponent(p),{method:'PUT',body:JSON.stringify(d)})},delete:async()=>{await api('/api/doc?path='+encodeURIComponent(p),{method:'DELETE'})},onSnapshot:fn=>{let last='';const poll=async()=>{try{const j=await api('/api/doc?path='+encodeURIComponent(p));const z=JSON.stringify(j);if(z!==last){last=z;fn({exists:j.exists,data:()=>j.data})}}catch(e){}};poll();return setInterval(poll,3000)}}),collection:c=>({onSnapshot:fn=>{let last='';const poll=async()=>{try{const arr=await api('/api/col/'+c);const z=JSON.stringify(arr);if(z!==last){last=z;fn({docs:arr.map(x=>({id:x.id,data:()=>{const y={...x};delete y.id;return y}}))})}}catch(e){}};poll();return setInterval(poll,3000)}})};
+}};
+</script>
+<script>
+(async()=>{if(!window.__FTA_TOKEN){const ok=await login();if(!ok)return;location.reload()}})();
+</script>
+
+<script>
+const $=s=>document.querySelector(s),esc=t=>String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const S={contacts:[],alarms:[],msgs:[],inbox:[],acks:[],reads:[],st:{},set:{name:'Friends Team',logo:'',notif:true,memberSend:true},meId:'',admin:false,uid:'',tab:'home',theme:null};
+let db,assets,user,ringing=null;
+const uid8=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const ini=n=>(n||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+const av=c=>c.photo?`<img class="av" src="${esc(c.photo)}" alt="">`:`<div class="av">${esc(ini(c.name))}</div>`;
+const tm=t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),dt=t=>new Date(t).toLocaleDateString([],{weekday:'short',day:'numeric',month:'short'});
+function toast(t){const e=$('#toast');e.innerHTML=`<div class="card" style="padding:10px 16px">${esc(t)}</div>`;setTimeout(()=>e.innerHTML='',2500)}
+async function up(f){if(!f)return'';if(!assets){toast('Uploads need Admin access');return''}try{return(await assets.upload(f)).url}catch(e){toast('Upload failed: '+(e.code||e.message));return''}}
+const save=async(p,d)=>{try{await db.doc(p).set(d)}catch(e){toast('Not allowed: '+(e.code||e.message))}};
+const del=async p=>{try{await db.doc(p).delete()}catch(e){toast('Not allowed')}};
+const snap=(p,k)=>db.collection(p).onSnapshot(s=>{S[k]=s.docs.map(d=>({id:d.id,...d.data()}));render()});
+const me=()=>S.contacts.find(c=>c.id===S.meId);
+const mine=a=>a.rec?.includes('all')||a.rec?.includes(S.meId);
+function step(a){return a.repeat==='daily'?864e5:a.repeat==='weekly'?6048e5:a.repeat==='custom'?Math.max(1,+a.every||1)*864e5:0}
+function status(a){if(a.status==='cancelled')return'cancelled';const s=new Date(a.at).getTime();return step(a)?'repeating':Date.now()<s?'scheduled':'completed'}
+function nextTs(a){const st=status(a);if(st==='cancelled'||st==='completed')return null;const s=new Date(a.at).getTime(),n=Date.now(),p=step(a);if(n<=s||!p)return s;return s+Math.ceil((n-s)/p)*p}
+function lastOcc(a){const s=new Date(a.at).getTime(),n=Date.now(),p=step(a);if(n<s)return null;return p?s+Math.floor((n-s)/p)*p:s}
+/* ---------- sound & notification ---------- */
+function sound(kind){try{const C=new(window.AudioContext||window.webkitAudioContext)(),pat={beep:[880,880,880],chime:[523,659,784],siren:[700,950,700,950]}[kind]||[880,880,880];pat.forEach((f,i)=>{const o=C.createOscillator(),g=C.createGain();o.frequency.value=f;o.type=kind==='chime'?'sine':'square';g.gain.value=.15;o.connect(g);g.connect(C.destination);o.start(C.currentTime+i*.45);o.stop(C.currentTime+i*.45+.3)})}catch(e){}}
+async function askPerm(){if(!('Notification'in window))return toast('Notifications not supported here');const r=await Notification.requestPermission();toast(r==='granted'?'Notifications enabled ✅':'Notifications blocked');render()}
+function ring(a,occ){if(ringing||!S.set.notif)return;ringing=a.id;sound(a.sound);
+ try{if(Notification.permission==='granted')new Notification('🔔 '+a.title,{body:a.msg,requireInteraction:true})}catch(e){}
+ $('#mod').innerHTML=`<div class="ov ring"><div class="md"><div style="font-size:48px">🔔</div><b class="tag ac">ALARM</b><h1 style="margin:8px 0">${esc(a.title)}</h1><p>“${esc(a.msg)}”</p>${a.att?`<img class="pv" src="${esc(a.att)}" alt="">`:''}
+ <button class="btn" style="width:100%;margin-bottom:10px" id="dis">Dismiss</button><div class="row" style="justify-content:center"><span class="mut">Snooze</span>${[5,10,15].map(m=>`<button class="btn g s sn" data-m="${m}">${m} min</button>`).join('')}</div></div></div>`;
+ const fin=async st=>{ringing=null;$('#mod').innerHTML='';if(a.id!=='test'&&S.uid){await save(`data/users/${S.uid}/alarmstate/${a.id}`,st);if(!st.snooze)await save('acks/'+a.id+'_'+S.uid,{alarm:a.id,uid:S.uid,name:me()?.name||'Member',ts:Date.now()})}};
+ $('#dis').onclick=()=>fin({done:occ,snooze:0});document.querySelectorAll('.sn').forEach(b=>b.onclick=()=>fin({done:S.st[a.id]?.done||0,snooze:Date.now()+b.dataset.m*6e4}))}
+function tick(){const n=new Date();const c=$('#clock');if(c)c.textContent=n.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+ const nx=heroNext();const e=$('#cd');if(e&&nx){let d=Math.max(0,nx.t-Date.now())/1e3|0;e.textContent=[d/3600|0,(d%3600)/60|0,d%60].map(x=>String(x).padStart(2,'0')).join(':')}
+ for(const a of S.alarms){if(!mine(a)||status(a)==='cancelled')continue;const o=lastOcc(a);if(!o)continue;const s=S.st[a.id]||{};
+  if(o>(s.done||0)&&(s.snooze?s.snooze<=Date.now():Date.now()-o<6e5)){ring(a,o);break}}}
+function heroNext(){let b=null;for(const a of S.alarms){if(S.admin?false:!mine(a))continue;const t=nextTs(a);if(t&&(!b||t<b.t))b={a,t}}return b}
+/* ---------- views ---------- */
+const greet=()=>{const h=new Date().getHours();return h<12?'GOOD MORNING':h<18?'GOOD AFTERNOON':'GOOD EVENING'};
+function names(a){return a.rec?.includes('all')?'Entire team':(a.rec||[]).map(i=>S.contacts.find(c=>c.id===i)?.name).filter(Boolean).join(', ')||'—'}
+function alarmCard(a){const st=status(a),t=nextTs(a)||new Date(a.at).getTime(),ak=S.acks.filter(k=>k.alarm===a.id).length;
+ return`<div class="card"><div class="row sp"><b>⏰ ${esc(a.title)}</b><span class="tag ${st==='cancelled'?'bad':st==='completed'?'ok':'ac'}">${st}</span></div>
+ <div style="font-size:26px;font-weight:700">${tm(t)} <span class="mut">${dt(t)}</span></div><div class="mut">“${esc(a.msg)}”</div>
+ <div class="row" style="margin-top:6px"><span class="tag">👥 ${esc(names(a))}</span><span class="tag">🔁 ${esc(a.repeat==='custom'?'every '+a.every+'d':a.repeat||'once')}</span>${S.admin?`<span class="tag">✔ ${ak} acknowledged</span>`:''}</div>
+ ${S.admin?`<div class="row" style="margin-top:10px"><button class="btn g s" data-a="ea" data-i="${a.id}">Edit</button>${st==='scheduled'||st==='repeating'?`<button class="btn g s" data-a="ca" data-i="${a.id}">Cancel</button>`:''}<button class="btn d s" data-a="da" data-i="${a.id}">Delete</button></div>`:''}</div>`}
+function home(){const nx=heroNext(),m=me();
+ return`<div class="top">${S.set.logo?`<img class="av" src="${esc(S.set.logo)}" alt="">`:'<div class="av">⏰</div>'}<b>${esc(S.set.name)}</b></div>
+ <div class="card hero"><small>${greet()} 👋</small><h1>${esc(m?.name||(S.admin?'Admin':S.set.name))}</h1><div id="clock"></div>
+ <div class="next">${nx?`<small>NEXT ALARM</small><div style="font-size:24px;font-weight:700">${tm(nx.t)} · ${esc(nx.a.title)}</div><div id="cd"></div>`:'<small>NO UPCOMING ALARMS</small>'}</div></div>
+ ${!S.admin&&!m?`<div class="card">Pick who you are in <b>Profile</b> to receive your alarms.</div>`:''}
+ ${'Notification'in window&&Notification.permission!=='granted'?`<div class="card row sp"><span>🔔 Enable notifications for alarms</span><button class="btn s" data-a="perm">Enable</button></div>`:''}
+ <h2>Today's reminders</h2>${S.alarms.filter(a=>(S.admin||mine(a))&&nextTs(a)&&new Date(nextTs(a)).toDateString()===new Date().toDateString()).map(alarmCard).join('')||'<div class="card mut">Nothing today 🎉</div>'}
+ <h2>Upcoming</h2>${S.alarms.filter(a=>(S.admin||mine(a))&&nextTs(a)).sort((x,y)=>nextTs(x)-nextTs(y)).slice(0,5).map(alarmCard).join('')||'<div class="card mut">No upcoming alarms</div>'}
+ ${S.admin?`<div class="row"><button class="btn" data-a="na">＋ New alarm</button><button class="btn g" data-a="test">Test alarm</button></div>`:''}`}
+function contacts(){return`<div class="row sp"><h2>Contacts (${S.contacts.length})</h2>${S.admin?`<button class="btn" data-a="nc">＋ Add Contact</button>`:''}</div>`+
+ (S.contacts.map(c=>`<div class="card"><div class="row">${av(c)}<div style="flex:1;min-width:0"><b>${esc(c.name)}</b><div class="mut">${esc(c.phone)}${c.email?' · '+esc(c.email):''}</div><div class="row" style="margin-top:4px"><span class="tag">${esc(c.role||'Member')}</span><span class="tag ${c.active===false?'bad':'ok'}">${c.active===false?'Inactive':'Active'}</span></div></div></div>
+ <div class="row" style="margin-top:10px"><a class="btn s" style="text-decoration:none" href="tel:${esc(c.phone)}">📞 Call</a><button class="btn g s" data-a="nm" data-i="${c.id}">💬 Message</button>${S.admin?`<button class="btn g s" data-a="ec" data-i="${c.id}">Edit</button><button class="btn d s" data-a="dc" data-i="${c.id}">Delete</button>`:''}</div></div>`).join('')||'<div class="card mut">No contacts yet.</div>')}
+function alarms(){const l=S.alarms.filter(a=>S.admin||mine(a)).sort((x,y)=>new Date(y.at)-new Date(x.at));
+ return`<div class="row sp"><h2>Alarms</h2>${S.admin?`<button class="btn" data-a="na">＋ New alarm</button>`:''}</div>${l.map(alarmCard).join('')||'<div class="card mut">No alarms.</div>'}`}
+function msgs(){const all=[...S.msgs,...S.inbox.map(m=>({...m,inb:1}))].filter(m=>S.admin||m.inb&&m.from===S.uid||!m.inb&&(m.to?.includes('all')||m.to?.includes(S.meId))).sort((a,b)=>b.ts-a.ts);
+ return`<div class="row sp"><h2>Messages</h2>${S.admin||S.set.memberSend?`<button class="btn" data-a="nm">✉️ New</button>`:''}</div>${all.map(m=>{const rd=S.reads.some(r=>r.msg===m.id),un=!S.admin&&!m.inb&&!rd;
+ return`<div class="card msg ${un?'un':''}" data-a="rd" data-i="${m.id}"><div class="row sp"><b>${m.inb?'From '+esc(m.fromName||'member'):'📣 Admin'}</b><span class="mut">${dt(m.ts)} ${tm(m.ts)}</span></div><div style="white-space:pre-wrap;margin:6px 0">${esc(m.text)}</div>${m.att?(/\.(png|jpe?g|gif|webp)|image/i.test(m.att+m.attType)?`<img class="pv" src="${esc(m.att)}" alt="">`:`<a href="${esc(m.att)}" target="_blank" rel="noopener">📎 Attachment</a>`):''}
+ <div class="row"><span class="tag">${m.to?.includes('all')?'Team announcement':m.inb?'To admin':'Direct'}</span>${S.admin&&!m.inb?`<span class="tag ${S.reads.filter(r=>r.msg===m.id).length?'ok':''}">👁 ${S.reads.filter(r=>r.msg===m.id).length} read</span>`:!m.inb?`<span class="tag ${rd?'':'ac'}">${rd?'Read':'Unread'}</span>`:''}${S.admin?`<button class="btn d s" data-a="dm" data-i="${m.id}" data-inb="${m.inb||''}">Delete</button>`:''}</div></div>`}).join('')||'<div class="card mut">No messages.</div>'}`}
+function profile(){const m=me();return`<h2>Profile</h2><div class="card"><div class="row">${m?av(m):'<div class="av">👤</div>'}<div><b>${esc(m?.name||'Not linked')}</b><div class="mut">${S.admin?'ADMIN':'MEMBER'}</div></div></div>
+ <label>I am…</label><select id="who"><option value="">— choose your contact —</option>${S.contacts.map(c=>`<option value="${c.id}" ${c.id===S.meId?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
+ <div class="card"><b>Notification settings</b><p class="mut">Permission: ${'Notification'in window?Notification.permission:'unsupported'}. Alarms ring while this app is open (installed to home screen works best).</p><button class="btn" data-a="perm">Enable notifications</button> <button class="btn g" data-a="theme">Toggle dark/light</button></div>`}
+function settings(){return`<h2>Settings</h2><div class="card"><label>Website name</label><input id="sn" value="${esc(S.set.name)}"><label>Logo / profile image</label><input type="file" id="sl" accept="image/*"><img class="pv" id="slp" src="${esc(S.set.logo)}" ${S.set.logo?'':'hidden'} alt="">
+ <label><input type="checkbox" id="sno" style="width:auto" ${S.set.notif?'checked':''}> Alarm notifications enabled for everyone</label><br><label><input type="checkbox" id="sms" style="width:auto" ${S.set.memberSend?'checked':''}> Members may message the Admin</label><br><br><button class="btn" data-a="ss">Save settings</button></div>
+ <div class="card"><b>Alarm history</b>${S.alarms.filter(a=>status(a)!=='scheduled'&&status(a)!=='repeating').map(a=>`<div class="mut">• ${esc(a.title)} — ${status(a)}, ${S.acks.filter(k=>k.alarm===a.id).map(k=>esc(k.name)).join(', ')||'no acknowledgements'}</div>`).join('')||'<div class="mut">Empty</div>'}</div>`}
+function render(){document.querySelectorAll('[data-theme]').length;const T={home:['🏠','Home'],contacts:['👥','Contacts'],alarms:['⏰','Alarms'],messages:['💬','Messages'],profile:['👤','Profile']};if(S.admin)T.settings=['⚙️','Settings'];
+ $('#nav').innerHTML=Object.entries(T).map(([k,v])=>`<button class="${S.tab===k?'on':''}" data-t="${k}"><b>${v[0]}</b>${v[1]}</button>`).join('');
+ const el=$('#app'),y=scrollY;el.innerHTML=({home,contacts,alarms,messages:msgs,profile,settings})[S.tab]();scrollTo(0,y);
+ const w=$('#who');if(w)w.onchange=()=>save(`data/users/${S.uid}/profile/me`,{id:w.value});
+ const sl=$('#sl');if(sl)sl.onchange=()=>{const f=sl.files[0];if(f){$('#slp').src=URL.createObjectURL(f);$('#slp').hidden=false}};tick()}
+/* ---------- forms ---------- */
+function modal(h){$('#mod').innerHTML=`<div class="ov"><div class="md">${h}</div></div>`;$('#mod .ov').onclick=e=>{if(e.target.classList.contains('ov'))$('#mod').innerHTML=''}}
+const close=()=>$('#mod').innerHTML='';
+function pv(inp,img){inp.onchange=()=>{const f=inp.files[0];img.hidden=!f;if(f&&f.type.startsWith('image/'))img.src=URL.createObjectURL(f);else if(f){img.hidden=true;toast('Selected: '+f.name)}}}
+function contactForm(id){const c=S.contacts.find(x=>x.id===id)||{active:true,role:'Member'};
+ modal(`<h2 style="margin-top:0">${id?'Edit':'Add'} contact</h2><label>Name *</label><input id="f1" value="${esc(c.name)}"><label>Phone *</label><input id="f2" type="tel" value="${esc(c.phone)}"><label>Email (optional)</label><input id="f3" type="email" value="${esc(c.email)}">
+ <label>Status</label><select id="f4"><option>Member</option><option>Core team</option></select><label><input type="checkbox" id="f5" style="width:auto" ${c.active!==false?'checked':''}> Active</label><br><label>Photo (from phone)</label><input type="file" id="f6" accept="image/*"><img class="pv" id="f7" src="${esc(c.photo)}" ${c.photo?'':'hidden'} alt="">
+ <div class="row"><button class="btn" id="ok">Save</button><button class="btn g" onclick="close()">Cancel</button></div>`);
+ $('#f4').value=c.role||'Member';pv($('#f6'),$('#f7'));
+ $('#ok').onclick=async()=>{const n=$('#f1').value.trim(),p=$('#f2').value.trim();if(!n||!/^[+\d][\d\s()-]{5,19}$/.test(p))return toast('Enter a valid name and phone');const em=$('#f3').value.trim();if(em&&!/^\S+@\S+\.\S+$/.test(em))return toast('Invalid email');
+  const ph=$('#f6').files[0]?await up($('#f6').files[0]):c.photo||'';await save('contacts/'+(id||uid8()),{name:n.slice(0,60),phone:p,email:em,role:$('#f4').value,active:$('#f5').checked,photo:ph});close()}}
+function alarmForm(id){const a=S.alarms.find(x=>x.id===id)||{rec:['all'],repeat:'once',sound:'beep',every:2,title:'',msg:'',at:''};let sel=new Set(a.rec);
+ const d=new Date(Date.now()+36e5);d.setMinutes(0,0,0);const def=a.at||new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,16);
+ modal(`<h2 style="margin-top:0">${id?'Edit':'New'} alarm</h2><label>Title *</label><input id="a1" value="${esc(a.title)}" placeholder="Football Match"><label>Message</label><textarea id="a2" rows="2" placeholder="Football starts at 7:30 PM. Get ready!">${esc(a.msg)}</textarea>
+ <label>Date & exact time</label><input id="a3" type="datetime-local" value="${def}"><label>Recipients</label><div class="chips" id="a4"><span class="chip" data-v="all">👥 Entire team</span>${S.contacts.filter(c=>c.active!==false).map(c=>`<span class="chip" data-v="${c.id}">${esc(c.name)}</span>`).join('')}</div>
+ <label>Repeat</label><select id="a5"><option value="once">Once</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="custom">Custom (every N days)</option></select><input id="a6" type="number" min="1" max="365" value="${a.every}" hidden>
+ <label>Notification sound</label><select id="a7"><option value="beep">Beep</option><option value="chime">Chime</option><option value="siren">Siren</option></select><label>Attachment (optional)</label><input type="file" id="a8" accept="image/*,.pdf"><img class="pv" id="a9" src="${esc(a.att)}" ${a.att?'':'hidden'} alt="">
+ <div class="row"><button class="btn" id="ok">${id?'Save':'Schedule'}</button><button class="btn g" onclick="close()">Cancel</button></div>`);
+ $('#a5').value=a.repeat;$('#a7').value=a.sound;const sh=()=>$('#a6').hidden=$('#a5').value!=='custom';sh();$('#a5').onchange=sh;pv($('#a8'),$('#a9'));
+ const paint=()=>document.querySelectorAll('#a4 .chip').forEach(c=>c.classList.toggle('on',sel.has(c.dataset.v)));paint();
+ $('#a4').onclick=e=>{const v=e.target.dataset?.v;if(!v)return;if(v==='all')sel=new Set(['all']);else{sel.delete('all');sel.has(v)?sel.delete(v):sel.add(v)}paint()};
+ $('#ok').onclick=async()=>{const t=$('#a1').value.trim();if(!t||!$('#a3').value||!sel.size)return toast('Title, time and recipients required');
+  const att=$('#a8').files[0]?await up($('#a8').files[0]):a.att||'';await save('alarms/'+(id||uid8()),{title:t.slice(0,80),msg:($('#a2').value.trim()||t).slice(0,300),at:$('#a3').value,rec:[...sel],repeat:$('#a5').value,every:+$('#a6').value||1,sound:$('#a7').value,att,status:'active',created:a.created||Date.now()});close()}}
+function msgForm(to){let sel=new Set(S.admin?(to?[to]:['all']):['admin']);
+ modal(`<h2 style="margin-top:0">New message</h2>${S.admin?`<label>To</label><div class="chips" id="m1"><span class="chip" data-v="all">👥 Entire team</span>${S.contacts.map(c=>`<span class="chip" data-v="${c.id}">${esc(c.name)}</span>`).join('')}</div>`:'<p class="mut">To: Admin</p>'}
+ <textarea id="m2" rows="4" placeholder="Write a message… 😀"></textarea><div class="row" style="margin-bottom:8px">${['😀','🔥','⚽','👍','🎉','⏰','❤️'].map(e=>`<button class="btn g s em">${e}</button>`).join('')}</div>
+ ${S.admin?`<label>Photo / file from phone</label><input type="file" id="m3" accept="image/*,.pdf,.doc,.docx"><img class="pv" id="m4" hidden alt="">`:''}<div class="row"><button class="btn" id="ok">Send</button><button class="btn g" onclick="close()">Cancel</button></div>`);
+ document.querySelectorAll('.em').forEach(b=>b.onclick=()=>$('#m2').value+=b.textContent);if(S.admin)pv($('#m3'),$('#m4'));
+ const paint=()=>document.querySelectorAll('#m1 .chip').forEach(c=>c.classList.toggle('on',sel.has(c.dataset.v)));paint();
+ if($('#m1'))$('#m1').onclick=e=>{const v=e.target.dataset?.v;if(!v)return;if(v==='all')sel=new Set(['all']);else{sel.delete('all');sel.has(v)?sel.delete(v):sel.add(v)}paint()};
+ $('#ok').onclick=async()=>{const tx=$('#m2').value.trim(),f=$('#m3')?.files[0];if(!tx&&!f||!sel.size)return toast('Write something and pick recipients');const att=f?await up(f):'';
+  const m={text:tx.slice(0,2000),to:[...sel],att,attType:f?.type||'',ts:Date.now(),from:S.uid,fromName:me()?.name||''};await save((S.admin?'messages/':'inbox/')+uid8(),m);close();toast('Sent ✅')}}
+/* ---------- actions ---------- */
+document.addEventListener('click',async e=>{const t=e.target.closest('[data-t],[data-a]');if(!t)return;const d=t.dataset;
+ if(d.t){S.tab=d.t;render();scrollTo(0,0);return}const i=d.i;
+ ({perm:askPerm,nc:()=>contactForm(),ec:()=>contactForm(i),na:()=>alarmForm(),ea:()=>alarmForm(i),nm:()=>msgForm(i),
+ theme:()=>{const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches;r.dataset.theme=dark?'light':'dark'},
+ test:()=>ring({id:'test',title:'Football Match',msg:'Football starts at 7:30 PM. Get ready!',sound:'chime'},0),
+ dc:async()=>confirm('Delete this contact permanently?')&&del('contacts/'+i),
+ da:async()=>confirm('Permanently delete this alarm?')&&del('alarms/'+i),
+ ca:async()=>{const a=S.alarms.find(x=>x.id===i);confirm('Cancel this alarm?')&&(()=>{const{id,...r}=a;save('alarms/'+i,{...r,status:'cancelled'})})()},
+ dm:async()=>confirm('Permanently delete this message?')&&del((d.inb?'inbox/':'messages/')+i),
+ rd:async()=>{if(!S.admin&&!S.reads.some(r=>r.msg===i)&&S.uid&&!S.inbox.some(m=>m.id===i))await save('reads/'+i+'_'+S.uid,{msg:i,uid:S.uid,ts:Date.now()})},
+ ss:async()=>{const f=$('#sl').files[0],lg=f?await up(f):S.set.logo;await save('settings/main',{name:$('#sn').value.trim().slice(0,40)||'Friends Team',logo:lg,notif:$('#sno').checked,memberSend:$('#sms').checked});toast('Settings saved')}})[d.a]?.()});
+/* ---------- boot ---------- */
+(async()=>{$('#app').innerHTML='<div class="card">Loading…</div>';
+ user=await claude.use('user');db=await claude.use('db');assets=await claude.use('assets');
+ if(!db||!user){$('#app').innerHTML='<div class="card"><h2>Sign in required</h2><p>Open this page while signed in to claude.ai to use Friends Team Alarm.</p></div>';return}
+ S.admin=user.isOwner();S.uid=await user.id();
+ snap('contacts','contacts');snap('alarms','alarms');snap('messages','msgs');snap('inbox','inbox');snap('acks','acks');snap('reads','reads');
+ db.doc('settings/main').onSnapshot(s=>{if(s.exists)Object.assign(S.set,s.data());render()});
+ db.doc(`data/users/${S.uid}/profile/me`).onSnapshot(s=>{S.meId=s.exists?s.data().id:'';render()});
+ db.collection(`data/users/${S.uid}/alarmstate`).onSnapshot(s=>{S.st={};s.docs.forEach(d=>S.st[d.id]=d.data());render()});
+ render();setInterval(tick,1000)})();
+</script></body></html>
