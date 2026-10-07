@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -43,24 +44,56 @@ img.pv{max-width:100%;max-height:200px;border-radius:12px;margin:6px 0}
 </style></head><body>
 <div id="app"></div><nav id="nav"></nav><div id="mod"></div><div id="toast" style="position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:30"></div>
 <script>
-window.__FTA_TOKEN=localStorage.getItem('fta_token')||'';
-async function api(path,opt={}){const r=await fetch(path,{...opt,headers:{'Content-Type':'application/json',Authorization:'Bearer '+window.__FTA_TOKEN,...(opt.headers||{})}});if(!r.ok)throw new Error((await r.text())||r.statusText);return r.status===204?null:r.json()}
-async function login(){
-  const mode=prompt('Login as: admin or member','admin')?.trim().toLowerCase(); if(!mode)return false;
-  let body={mode}; if(mode==='admin') body.key=prompt('Admin key:'); else body.name=prompt('Your contact name:');
-  try{const x=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!x.ok)throw new Error('Login failed');const j=await x.json();localStorage.setItem('fta_token',j.token);window.__FTA_TOKEN=j.token;return true}catch(e){alert(e.message);return false}
+/* ---------- Friends Team Alarm WebPush/API adapter ---------- */
+const API=location.origin+'/api';
+const tokenGet=()=>localStorage.getItem('fta_token')||'';
+async function api(path,opts={}){
+  const h={'Content-Type':'application/json',...(opts.headers||{})};
+  const t=tokenGet(); if(t) h.Authorization='Bearer '+t;
+  const r=await fetch(API+path,{...opts,headers:h});
+  if(!r.ok){let j={};try{j=await r.json()}catch(e){};throw Error(j.error||('HTTP '+r.status));}
+  return r.status===204?null:r.json();
 }
+async function login(){
+  let mode=prompt('Login as: admin or member','member'); if(mode===null)return false;
+  mode=mode.trim().toLowerCase();
+  let body;
+  if(mode==='admin') body={mode:'admin',key:prompt('Admin key:','')||''};
+  else body={mode:'member',name:prompt('Your contact name:','')||''};
+  try{const x=await api('/login',{method:'POST',body:JSON.stringify(body)});localStorage.setItem('fta_token',x.token);window.__FTA_TOKEN=x.token;return true}
+  catch(e){alert(e.message);return false}
+}
+function makeDoc(path){return{
+  async get(){return api('/doc?path='+encodeURIComponent(path));},
+  async set(data){return api('/doc?path='+encodeURIComponent(path),{method:'PUT',body:JSON.stringify(data)});},
+  async delete(){return api('/doc?path='+encodeURIComponent(path),{method:'DELETE'});},
+  onSnapshot(cb){let stopped=false,last='';const poll=async()=>{try{const x=await this.get();const s=JSON.stringify(x);if(s!==last){last=s;cb({exists:!!x.exists,data:()=>x.data});}}catch(e){if(e.message.includes('401')){localStorage.removeItem('fta_token');}}if(!stopped)setTimeout(poll,2000)};poll();return()=>{stopped=true}}
+}}
+function makeCollection(name){return{
+  async get(){return api('/col/'+encodeURIComponent(name));},
+  onSnapshot(cb){let stopped=false,last='';const poll=async()=>{try{const arr=await this.get();const s=JSON.stringify(arr);if(s!==last){last=s;cb({docs:arr.map(d=>({id:d.id,data:()=>{const z={...d};delete z.id;return z}}))});}}catch(e){}if(!stopped)setTimeout(poll,2000)};poll();return()=>{stopped=true}}
+}}
 window.claude={use:async kind=>{
-  if(kind==='user'){let m;try{m=await api('/api/me')}catch(e){if(await login())m=await api('/api/me');else return null}return {isOwner:()=>m.role==='admin',id:async()=>m.id}}
-  if(kind==='assets') return {upload:async f=>{return await new Promise((resolve,reject)=>{const rd=new FileReader();rd.onload=()=>resolve({url:rd.result});rd.onerror=reject;rd.readAsDataURL(f)})}};
-  if(kind==='db') return {doc:p=>({set:async d=>{await api('/api/doc?path='+encodeURIComponent(p),{method:'PUT',body:JSON.stringify(d)})},delete:async()=>{await api('/api/doc?path='+encodeURIComponent(p),{method:'DELETE'})},onSnapshot:fn=>{let last='';const poll=async()=>{try{const j=await api('/api/doc?path='+encodeURIComponent(p));const z=JSON.stringify(j);if(z!==last){last=z;fn({exists:j.exists,data:()=>j.data})}}catch(e){}};poll();return setInterval(poll,3000)}}),collection:c=>({onSnapshot:fn=>{let last='';const poll=async()=>{try{const arr=await api('/api/col/'+c);const z=JSON.stringify(arr);if(z!==last){last=z;fn({docs:arr.map(x=>({id:x.id,data:()=>{const y={...x};delete y.id;return y}}))})}}catch(e){}};poll();return setInterval(poll,3000)}})};
+  if(kind==='user'){const x=await api('/me');return{isOwner:()=>x.role==='admin',id:async()=>x.id,name:async()=>x.name};}
+  if(kind==='db')return{doc:makeDoc,collection:makeCollection};
+  if(kind==='assets')return{upload:async()=>{throw Error('File upload is not enabled on this server yet')}};
+  return null;
 }};
-</script>
-<script>
-(async()=>{if(!window.__FTA_TOKEN){const ok=await login();if(!ok)return;location.reload()}})();
-</script>
+window.__FTA_TOKEN=tokenGet();
+/* Register service worker and keep Web Push subscription linked to this login. */
+async function setupPush(){
+  try{
+    if(!('serviceWorker' in navigator)||!('PushManager' in window)||!('Notification' in window)||Notification.permission!=='granted')return;
+    const reg=await navigator.serviceWorker.register('/sw.js');
+    const key=(await api('/push/public-key')).publicKey;
+    if(!key)return;
+    const b64=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64(key)});
+    await api('/push/subscribe',{method:'POST',body:JSON.stringify(sub)});
+  }catch(e){console.warn('Push setup:',e.message)}
+}
 
-<script>
 const $=s=>document.querySelector(s),esc=t=>String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const S={contacts:[],alarms:[],msgs:[],inbox:[],acks:[],reads:[],st:{},set:{name:'Friends Team',logo:'',notif:true,memberSend:true},meId:'',admin:false,uid:'',tab:'home',theme:null};
 let db,assets,user,ringing=null;
@@ -81,7 +114,7 @@ function nextTs(a){const st=status(a);if(st==='cancelled'||st==='completed')retu
 function lastOcc(a){const s=new Date(a.at).getTime(),n=Date.now(),p=step(a);if(n<s)return null;return p?s+Math.floor((n-s)/p)*p:s}
 /* ---------- sound & notification ---------- */
 function sound(kind){try{const C=new(window.AudioContext||window.webkitAudioContext)(),pat={beep:[880,880,880],chime:[523,659,784],siren:[700,950,700,950]}[kind]||[880,880,880];pat.forEach((f,i)=>{const o=C.createOscillator(),g=C.createGain();o.frequency.value=f;o.type=kind==='chime'?'sine':'square';g.gain.value=.15;o.connect(g);g.connect(C.destination);o.start(C.currentTime+i*.45);o.stop(C.currentTime+i*.45+.3)})}catch(e){}}
-async function askPerm(){if(!('Notification'in window))return toast('Notifications not supported here');const r=await Notification.requestPermission();toast(r==='granted'?'Notifications enabled ✅':'Notifications blocked');render()}
+async function askPerm(){if(!('Notification'in window))return toast('Notifications not supported here');const r=await Notification.requestPermission();if(r==='granted')await setupPush();toast(r==='granted'?'Notifications enabled ✅':'Notifications blocked');render()}
 function ring(a,occ){if(ringing||!S.set.notif)return;ringing=a.id;sound(a.sound);
  try{if(Notification.permission==='granted')new Notification('🔔 '+a.title,{body:a.msg,requireInteraction:true})}catch(e){}
  $('#mod').innerHTML=`<div class="ov ring"><div class="md"><div style="font-size:48px">🔔</div><b class="tag ac">ALARM</b><h1 style="margin:8px 0">${esc(a.title)}</h1><p>“${esc(a.msg)}”</p>${a.att?`<img class="pv" src="${esc(a.att)}" alt="">`:''}
@@ -175,56 +208,18 @@ document.addEventListener('click',async e=>{const t=e.target.closest('[data-t],[
  rd:async()=>{if(!S.admin&&!S.reads.some(r=>r.msg===i)&&S.uid&&!S.inbox.some(m=>m.id===i))await save('reads/'+i+'_'+S.uid,{msg:i,uid:S.uid,ts:Date.now()})},
  ss:async()=>{const f=$('#sl').files[0],lg=f?await up(f):S.set.logo;await save('settings/main',{name:$('#sn').value.trim().slice(0,40)||'Friends Team',logo:lg,notif:$('#sno').checked,memberSend:$('#sms').checked});toast('Settings saved')}})[d.a]?.()});
 /* ---------- boot ---------- */
-(async()=>{
-  $('#app').innerHTML='<div class="card">Loading...</div>';
-
-  try{
-    if(!window.__FTA_TOKEN){
-      const ok=await login();
-      if(!ok)return;
-    }
-
-    user=await claude.use('user');
-    db=await claude.use('db');
-    assets=await claude.use('assets');
-
-    if(!user){
-      $('#app').innerHTML='<div class="card"><h2>Login required</h2><p>Please login to use Friends Team Alarm.</p></div>';
-      return;
-    }
-
-    S.admin=!!user.isOwner;
-    S.uid=await user.id();
-
-    snap('contacts','contacts');
-    snap('alarms','alarms');
-    snap('messages','msgs');
-    snap('inbox','inbox');
-    snap('acks','acks');
-    snap('reads','reads');
-
-    db.doc('settings/main').onSnapshot(s=>{
-      if(s.exists)Object.assign(S,s.data());
-      render();
-    });
-
-    db.doc(`data/users/${S.uid}/profile/me`).onSnapshot(s=>{
-      S.meId=s.exists?s.data().id:'';
-      render();
-    });
-
-    db.collection(`data/users/${S.uid}/alarmstate`).onSnapshot(s=>{
-      S.st={};
-      s.docs.forEach(d=>S.st[d.id]=d.data());
-      render();
-    });
-
-    render();
-    setInterval(tick,1000);
-
-  }catch(e){
-    console.error(e);
-    $('#app').innerHTML='<div class="card"><h2>Error</h2><p>'+e.message+'</p></div>';
-  }
+(async()=>{$('#app').innerHTML='<div class="card">Loading…</div>';
+ try{
+  if(!window.__FTA_TOKEN){const ok=await login();if(!ok)return;}
+  user=await claude.use('user');db=await claude.use('db');assets=await claude.use('assets');
+  if(!db||!user){$('#app').innerHTML='<div class="card"><h2>Login required</h2><p>Please log in to use Friends Team Alarm.</p></div>';return}
+  S.admin=user.isOwner();S.uid=await user.id();
+  await setupPush();
+  snap('contacts','contacts');snap('alarms','alarms');snap('messages','msgs');snap('inbox','inbox');snap('acks','acks');snap('reads','reads');
+  db.doc('settings/main').onSnapshot(s=>{if(s.exists)Object.assign(S.set,s.data());render()});
+  db.doc(`data/users/${S.uid}/profile/me`).onSnapshot(s=>{S.meId=s.exists?s.data().id:'';render()});
+  db.collection(`data/users/${S.uid}/alarmstate`).onSnapshot(s=>{S.st={};s.docs.forEach(d=>S.st[d.id]=d.data());render()});
+  render();setInterval(tick,1000);
+ }catch(e){console.error(e);$('#app').innerHTML='<div class="card"><h2>Error</h2><p>'+esc(e.message)+'</p></div>'}
 })();
 </script></body></html>
